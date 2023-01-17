@@ -3,6 +3,8 @@ package bank;
 import java.util.Random;
 import java.util.Scanner;
 
+import javax.swing.JOptionPane;
+
 public class ATM {
 	public static void main(String[] args) {
 		Bank[][] arrBank = new Bank[3][100];
@@ -11,9 +13,9 @@ public class ATM {
 		
 		final int ACCOUNT_LENGTH = 6;
 		
-		String message = "1. 신한은행\n2. 국민은행\n3. 카카오뱅크\n4.나가기";
+		String message = "1. 신한은행\n2. 국민은행\n3. 카카오뱅크\n4. 나가기";
 //		계좌개설, 입금하기, 출금하기, 잔액조회, 계좌번호 찾기(새로운 계좌발급, 핸드폰 번호로 서비스 이용가능), 나가기
-		String menu = "1. 계좌개설\n2. 입금하기\n3. 출금하기\n4. 잔액조회\n5. 계좌번호 찾기\n6. 은행 다시 선택";
+		String menu = "0. 주식시장\n1. 계좌개설\n2. 입금하기\n3. 출금하기\n4. 잔액조회\n5. 계좌번호 찾기\n6. 은행 다시 선택";
 		Scanner sc = new Scanner(System.in);
 		int index = 0, choice = 0, money = 0;
 		String account = "", phoneNumber = null, password = null;
@@ -24,13 +26,11 @@ public class ATM {
 		while(true) {
 //			은행을 선택한다.
 			System.out.println(message);
-//			내일 강사님께 질문
 			index = sc.nextInt();
 			if(index == 4) {break;} // 나가기 눌렀을 때에는 while문 즉시 탈출!
 			index--; // 인덱스로 쓸 거라서 1을 빼준다.
 			
 			while(true) {
-				System.out.println(account);
 				System.out.println(menu);
 				choice = sc.nextInt();
 				if(choice == 6) {break;}
@@ -46,6 +46,7 @@ public class ATM {
 						if(userCheck == null) {break;}
 					}
 					user = arBank[index];
+					account = index + account;
 					user.setAccount(account);
 					account = "";
 					
@@ -105,6 +106,7 @@ public class ATM {
 							}
 							System.out.println("새로운 계좌번호로 변경되었습니다.");
 							System.out.println("계좌번호: " + account);
+							account = user.getAccount().charAt(0) + account;
 							user.setAccount(account);
 						}
 					}else {
@@ -122,8 +124,45 @@ public class ATM {
 				user = Bank.login(arrBank, arCount, account, password);
 				
 				switch(choice) {
-				case 2: // 입금하기
+				case 0: // 주식 시장
+					if(!(user instanceof KaKao)) {
+						System.out.println("주식 서비스는 현재 카카오뱅크에서만 이용 가능합니다.");
+						break;
+					}
+					String[] buttons = {"매도하기", "나가기"};
+					KaKao kakaoUser = (KaKao)user;
+					Thread stockThread = new Thread(kakaoUser);
+					
+					if(kakaoUser.getStockMoney() == 0) {
+						System.out.print("투자액: ");
+						kakaoUser.setPrincipal(sc.nextInt());
+						kakaoUser.setStockMoney(kakaoUser.getPrincipal());
+						kakaoUser.setMoney(kakaoUser.getMoney() - kakaoUser.getPrincipal());
+						
+						stockThread.start();
+					}					
+					
+					synchronized (kakaoUser) {
+						kakaoUser.isExit = false;
+						kakaoUser.notify();
+					}
+					choice = JOptionPane.showOptionDialog(null, "", "매도 프로그램", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, buttons, null);
+					if(choice == 0) { // 매도하기
+						kakaoUser.setMoney(kakaoUser.getMoney() + kakaoUser.getStockMoney());
+						kakaoUser.setStockMoney(0);
+						System.out.println("현재 잔액: " + kakaoUser.getMoney() + "원");
+						stockThread.interrupt();
+					}else { // 나가기
+						kakaoUser.isExit = true;
+					}
+					break;
+				case 2: // 입금하기(계좌를 개설한 은행에서만 입금 가능 '계좌번호에 무슨 은행인지 표시')
 					if(user != null) {
+						if(!user.getAccount().startsWith(index + "")) {
+							System.out.println("계좌번호를 개설한 은행에서만 입금 서비스 이용이 가능합니다.");
+							break;
+						}
+						
 						System.out.print("입금액: ");
 						money = sc.nextInt();
 						if(money > 0) {
